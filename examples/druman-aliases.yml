@@ -1,0 +1,17 @@
+projects:
+  - 
+    alias: "foo"
+    path: "/var/www/foo/web"
+    groups: autoup,hacked
+    manager: drush8
+  - 
+    alias: "bar"
+    path: "/var/www/bar/web"
+    groups: autoup
+    manager: drupal-composer
+  - 
+    alias: "test"
+    path: "/home/bar"
+    groups: test
+    manager: drupal-composer
+
