@@ -3,6 +3,7 @@
 namespace Druman\Command;
 
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\HelpCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -39,6 +40,8 @@ class RunnerProjectsCommand extends Command
       ->setDefinition(
         new InputDefinition([
           new InputOption('group', 'g', InputOption::VALUE_OPTIONAL, 'Run only on these projects which are members of specified group'),
+	  new InputOption('alias', 'a', InputOption::VALUE_OPTIONAL, 'Run only on this specific alias'),
+	  new InputOption('all', 'all', InputOption::VALUE_NONE, 'Run in all alias, excluding those using drush8-alias manager'),
       ]))
       ->addArgument('order', InputArgument::OPTIONAL, 'Command to run.');
   }
@@ -50,18 +53,45 @@ class RunnerProjectsCommand extends Command
   protected function execute(InputInterface $input, OutputInterface $output)
   {
     $group = $input->getOption('group');
+    $alias_opt = $input->getOption('alias');
+    $in_all = $input->getOption('all');
     $result = 0;
+
+    if (!$in_all && !$alias_opt && !$group){
+      $output->writeln(sprintf('<error>%s</error>', "Please, set --group, --alias or --all to apply to some project(s)."));
+      $help = new HelpCommand();
+      $help->setCommand($this);
+      return $help->run($input, $output);
+    }
 
     $progressBar = new ProgressBar($output, sizeof($this->aliases));
     $progressBar->start();
+    $output->writeln("");
     $i = 0;
 
+
     foreach($this->aliases as $key=>$alias){
-      if ($group){
-	$groups = explode(',', $alias['groups']);
-	if (!in_array($group, $groups)){
-	  continue;
-	}	
+      if (!$in_all){
+	if (!$alias_opt && !$group){
+          break;
+	}
+        if ($group){
+          $groups = explode(',', $alias['groups']);
+          if (!in_array($group, $groups)){
+            continue;
+          }
+        }
+        if ($alias_opt){
+          if ($alias['alias'] !== $alias_opt ){
+            continue;
+          }
+	}
+      }else{
+        // do not run drush8-alias commands when in all mode, to prevent commands not aplicable.
+        if ($alias['manager'] == "drush8-alias"){
+          $output->writeln(sprintf('<info>Omitting the drush8-alias managed project "%s" to prevent mixing drush and bash commands.</info>', $alias['alias']));
+          continue;
+        }
       }
 
       if ($this->executeInAlias($input, $output, $alias) == -1){
@@ -69,9 +99,12 @@ class RunnerProjectsCommand extends Command
         $result = -1;
       }
       $progressBar->advance();
+      $output->writeln("");
+
       $i++;
     }
     $progressBar->finish();
+    $output->writeln("");
 
     // return value is important when using CI
     // to fail the build when the command fails
@@ -89,8 +122,14 @@ class RunnerProjectsCommand extends Command
   protected function executeInAlias(InputInterface $input, OutputInterface $output, $alias){
     // get the username to prevent calling fix-perms always...
     $alias_user = posix_getpwuid(fileowner($alias['path']))['name'];
-    
-    $proc = new Process(sprintf("cd '%s' && su %s -c \"%s\" -s /bin/bash", $alias['path'], $alias_user, $this->order));
+
+    $drush_alias = $alias['manager'] == 'drush8-alias' ? "@" . $alias['alias']:FALSE;
+    if ($drush_alias){
+      $proc = new Process(sprintf("drush %s %s", $drush_alias, $this->order));
+    }
+    else {
+      $proc = new Process(sprintf("cd '%s' && su %s -c \"%s\" -s /bin/bash", $alias['path'], $alias_user, $this->order));
+    }
     $output->writeln(sprintf('<info>processing command "%s" in alias "%s"</info>', $this->order, $alias['alias']));
     try{
       $proc->setTty(true);

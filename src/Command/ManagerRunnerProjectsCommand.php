@@ -27,6 +27,8 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
       ->setDefinition(
         new InputDefinition([
           new InputOption('group', 'g', InputOption::VALUE_OPTIONAL, 'Run only on these projects which are members of specified group'),
+          new InputOption('alias', 'a', InputOption::VALUE_OPTIONAL, 'Run only on this specific alias'),
+	  new InputOption('all', 'all', InputOption::VALUE_NONE, 'Run in all alias, excluding those using drush8-alias manager'),
       ]));
   }
 
@@ -58,21 +60,22 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
       $this->order = "vendor/bin/drush sset system.maintenance_mode 0";
       $result += parent::executeInAlias($input, $output, $alias);
     }
-    if ($alias['manager'] == 'drush8' ){
+    if ($alias['manager'] == 'drush8' or $alias['manager'] == 'drush8-alias'){
+      $drush_alias = $alias['manager'] == 'drush8-alias' ? "@" . $alias['alias']:"";
       // Set to maintenance mode:
-      $this->order = "drush vset maintenance_mode 1";
+      $this->order = "drush $drush_alias vset maintenance_mode 1";
       $result += parent::executeInAlias($input, $output, $alias);
       //first update all
-      $this->order = "drush up";
+      $this->order = "drush $drush_alias up";
       $result += parent::executeInAlias($input, $output, $alias);
       //update db:
-      $this->order = "drush updatedb";
+      $this->order = "drush $drush_alias updatedb";
       $result += parent::executeInAlias($input, $output, $alias);
       //rebuild cache
-      $this->order = "drush cc all";
+      $this->order = "drush $drush_alias cc all";
       $result += parent::executeInAlias($input, $output, $alias);
       // Set off maintenance mode:
-      $this->order = "drush vset maintenance_mode 0";
+      $this->order = "drush $drush_alias vset maintenance_mode 0";
       $result += parent::executeInAlias($input, $output, $alias);
     }
     return $result;
