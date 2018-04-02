@@ -29,6 +29,8 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
           new InputOption('group', 'g', InputOption::VALUE_OPTIONAL, 'Run only on these projects which are members of specified group'),
           new InputOption('alias', 'a', InputOption::VALUE_OPTIONAL, 'Run only on this specific alias'),
 	  new InputOption('all', 'all', InputOption::VALUE_NONE, 'Run in all alias, excluding those using drush8-alias manager'),
+	  new InputOption('local', 'l', InputOption::VALUE_NONE, 'List only local projects'),
+	  new InputOption('remote', 'r', InputOption::VALUE_NONE, 'List only remote projects'),
       ]));
   }
 

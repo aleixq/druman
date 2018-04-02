@@ -11,10 +11,13 @@ use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Console\Helper\ProgressBar;
+use Druman\ProjectsFiltersTrait;
 
 
 class RunnerProjectsCommand extends Command
 {
+  use ProjectsFiltersTrait;
+
   private $aliases;
   protected $failingProcess;
   protected $order;
@@ -41,7 +44,9 @@ class RunnerProjectsCommand extends Command
         new InputDefinition([
           new InputOption('group', 'g', InputOption::VALUE_OPTIONAL, 'Run only on these projects which are members of specified group'),
 	  new InputOption('alias', 'a', InputOption::VALUE_OPTIONAL, 'Run only on this specific alias'),
-	  new InputOption('all', 'all', InputOption::VALUE_NONE, 'Run in all alias, excluding those using drush8-alias manager'),
+	  new InputOption('all', 'all', InputOption::VALUE_NONE, 'Run in all alias, excluding those using drush8-alias manager, if specified no filters will be used'),
+	  new InputOption('local', 'l', InputOption::VALUE_NONE, 'List only local projects'),
+	  new InputOption('remote', 'r', InputOption::VALUE_NONE, 'List only remote projects'),
       ]))
       ->addArgument('order', InputArgument::OPTIONAL, 'Command to run.');
   }
@@ -55,32 +60,31 @@ class RunnerProjectsCommand extends Command
     $group = $input->getOption('group');
     $alias_opt = $input->getOption('alias');
     $in_all = $input->getOption('all');
+    $local_only = $input->getOption('local');
+    $remote_only = $input->getOption('remote');
+
     $result = 0;
 
-    if (!$in_all && !$alias_opt && !$group){
-      $output->writeln(sprintf('<error>%s</error>', "Please, set --group, --alias or --all to apply to some project(s)."));
+    if (!$in_all && !$alias_opt && !$group && !$remote_only && !$local_only){
+      $output->writeln(sprintf('<error>%s</error>', "Please, set --group, --alias, --local, --remote or --all to apply to some project(s)."));
       $help = new HelpCommand();
       $help->setCommand($this);
       return $help->run($input, $output);
     }
 
-    $progressBar = new ProgressBar($output, sizeof($this->aliases));
+    $aliases = $this->filterByOrigin($local_only, $remote_only, $this->aliases);
+    $aliases = $this->filterByGroup($group, $aliases);
+    if ($in_all){
+      $aliases = $this->aliases;
+    }
+
+    $progressBar = new ProgressBar($output, sizeof($aliases));
     $progressBar->start();
     $output->writeln("");
     $i = 0;
 
-
-    foreach($this->aliases as $key=>$alias){
+    foreach($aliases as $key=>$alias){
       if (!$in_all){
-	if (!$alias_opt && !$group){
-          break;
-	}
-        if ($group){
-          $groups = explode(',', $alias['groups']);
-          if (!in_array($group, $groups)){
-            continue;
-          }
-        }
         if ($alias_opt){
           if ($alias['alias'] !== $alias_opt ){
             continue;
