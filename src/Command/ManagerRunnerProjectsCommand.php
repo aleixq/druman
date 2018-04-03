@@ -43,6 +43,7 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
     $result = 0;
     echo $alias['manager'];
     if ($alias['manager'] == 'drupal-composer' ){
+      //  Process for Drupals with drupal-composer.
       // Set to maintenance mode:
       $this->order = "vendor/bin/drush sset system.maintenance_mode 1";
       $result += parent::executeInAlias($input, $output, $alias);
@@ -63,21 +64,22 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
       $result += parent::executeInAlias($input, $output, $alias);
     }
     if ($alias['manager'] == 'drush8' or $alias['manager'] == 'drush8-alias'){
-      $drush_alias = $alias['manager'] == 'drush8-alias' ? "@" . $alias['alias']:"";
+      // Process for Drupals 7 and drush <=8;
+      $with_drush = $alias['manager'] == 'drush8' ? "drush":"";
       // Set to maintenance mode:
-      $this->order = "drush $drush_alias vset maintenance_mode 1";
+      $this->order = $with_drush . "vset maintenance_mode 1";
       $result += parent::executeInAlias($input, $output, $alias);
       //first update all
-      $this->order = "drush $drush_alias up";
+      $this->order = $with_drush . "up";
       $result += parent::executeInAlias($input, $output, $alias);
       //update db:
-      $this->order = "drush $drush_alias updatedb";
+      $this->order = $with_drush . "updatedb";
       $result += parent::executeInAlias($input, $output, $alias);
       //rebuild cache
-      $this->order = "drush $drush_alias cc all";
+      $this->order = $with_drush . "cc all";
       $result += parent::executeInAlias($input, $output, $alias);
       // Set off maintenance mode:
-      $this->order = "drush $drush_alias vset maintenance_mode 0";
+      $this->order = $with_drush . "vset maintenance_mode 0";
       $result += parent::executeInAlias($input, $output, $alias);
     }
     return $result;
