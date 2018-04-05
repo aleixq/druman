@@ -6,7 +6,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
+use Symfony\Component\Process\Process;
 
 
 class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
@@ -41,7 +41,6 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
   protected function executeInAlias(InputInterface $input, OutputInterface $output, $alias)
   {
     $result = 0;
-    echo $alias['manager'];
     if ($alias['manager'] == 'drupal-composer' ){
       //  Process for Drupals with drupal-composer.
       // Set to maintenance mode:
@@ -65,9 +64,15 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
     }
     if ($alias['manager'] == 'drush8' or $alias['manager'] == 'drush8-alias'){
       // Process for Drupals 7 and drush <=8;
-      $with_drush = $alias['manager'] == 'drush8' ? "drush":"";
+      $with_drush = $alias['manager'] == 'drush8' ? "drush ":"";
+
+      $drupal_version = $this->getDrupalVersion($input, $output);
+      $drupal_major_version = explode(".", $drupal_version, 2)[0];
+      $output->writeln(sprintf('<info>Drupal version: %s</info>', $drupal_major_version));
+      
       // Set to maintenance mode:
-      $this->order = $with_drush . "vset maintenance_mode 1";
+      $set_maintenance_mode = ($drupal_major_version == 8 )? "sset system.maintenance_mode":"vset maintenance_mode" ;
+      $this->order = $with_drush . $set_maintenance_mode . " 1";
       $result += parent::executeInAlias($input, $output, $alias);
       //first update all
       $this->order = $with_drush . "up";
@@ -76,12 +81,31 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
       $this->order = $with_drush . "updatedb";
       $result += parent::executeInAlias($input, $output, $alias);
       //rebuild cache
-      $this->order = $with_drush . "cc all";
+      $cache_clear = ($drupal_major_version == 8 )? "cr" : "cc";
+      $this->order = $with_drush . $cache_clear . " all";
       $result += parent::executeInAlias($input, $output, $alias);
       // Set off maintenance mode:
-      $this->order = $with_drush . "vset maintenance_mode 0";
+      $this->order = $with_drush . $set_maintenance_mode . " 0";
       $result += parent::executeInAlias($input, $output, $alias);
     }
     return $result;
+  }
+
+  protected function getDrupalVersion(InputInterface $input, OutputInterface $output){
+    $process = new Process('drush status');
+    $process->start();
+    $version = '';
+
+    foreach ($process as $type => $data) {
+      if ($process::OUT === $type) {
+        if (preg_match('|Drush version +: +(.*)|', $data, $matches)) {
+          $version = trim($matches[1]);
+        }
+      } else {
+        echo "[ERR] ".$data."-----data\n";
+      }
+    }
+    return $version;
+
   }
 }
