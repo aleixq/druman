@@ -66,7 +66,7 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
       // Process for Drupals 7 and drush <=8;
       $with_drush = $alias['manager'] == 'drush8' ? "drush ":"";
 
-      $drupal_version = $this->getDrupalVersion($input, $output);
+      $drupal_version = $this->getDrupalVersion($output, $alias['path']);
       $drupal_major_version = explode(".", $drupal_version, 2)[0];
       $output->writeln(sprintf('<info>Drupal version: %s</info>', $drupal_major_version));
       
@@ -91,14 +91,14 @@ class ManagerRunnerProjectsCommand extends RunnerProjectsCommand
     return $result;
   }
 
-  protected function getDrupalVersion(InputInterface $input, OutputInterface $output){
-    $process = new Process('drush status');
+  protected function getDrupalVersion(OutputInterface $output, $path){
+    $process = new Process(sprintf('cd %s && drush status', $path));
     $process->start();
     $version = '';
 
     foreach ($process as $type => $data) {
       if ($process::OUT === $type) {
-        if (preg_match('|Drush version +: +(.*)|', $data, $matches)) {
+        if (preg_match('|Drupal version +: +(.*)|', $data, $matches)) {
           $version = trim($matches[1]);
         }
       } else {
