@@ -74,8 +74,15 @@ class RunnerProjectsCommand extends Command
 
     $aliases = $this->filterByOrigin($local_only, $remote_only, $this->aliases);
     $aliases = $this->filterByGroup($group, $aliases);
+    $aliases = $this->filterByAlias($alias_opt, $aliases);
+
     if ($in_all){
       $aliases = $this->aliases;
+    }
+
+    if ($alias_opt && sizeof($aliases) == 0){
+      $output->writeln(sprintf('<error>Could not found alias "%s"</error>', $alias_opt));
+      return -1;
     }
 
     $progressBar = new ProgressBar($output, sizeof($aliases));
@@ -84,13 +91,7 @@ class RunnerProjectsCommand extends Command
     $i = 0;
 
     foreach($aliases as $key=>$alias){
-      if (!$in_all){
-        if ($alias_opt){
-          if ($alias['alias'] !== $alias_opt ){
-            continue;
-          }
-	}
-      }else{
+      if ($in_all){
         // do not run drush8-alias commands when in all mode, to prevent commands not aplicable.
         if ($alias['manager'] == "drush8-alias"){
           $output->writeln(sprintf('<info>Omitting the drush8-alias managed project "%s" to prevent mixing drush and bash commands.</info>', $alias['alias']));
@@ -109,6 +110,7 @@ class RunnerProjectsCommand extends Command
     }
     $progressBar->finish();
     $output->writeln("");
+
 
     // return value is important when using CI
     // to fail the build when the command fails
@@ -135,6 +137,7 @@ class RunnerProjectsCommand extends Command
       $proc = new Process(sprintf("cd '%s' && su %s -c \"%s\" -s /bin/bash", $alias['path'], $alias_user, $this->order));
     }
     $output->writeln(sprintf('<info>processing command "%s" in alias "%s"</info>', $this->order, $alias['alias']));
+    $output->writeln(sprintf("cd '%s' && su %s -c \"%s\" -s /bin/bash", $alias['path'], $alias_user, $this->order));
     try{
       $proc->setTty(true);
       $proc->mustRun(function ($type, $buffer) {

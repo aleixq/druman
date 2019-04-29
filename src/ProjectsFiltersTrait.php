@@ -67,5 +67,31 @@ trait ProjectsFiltersTrait {
     return $results;
   }
 
+ /**
+  * Filters an array by alias, if any.
+  *
+  * @param string $needle_alias
+  *   The alias to filter by.
+  * @param [] $aliases
+  *   The aliases to filter.
+  *
+  * @return []
+  *   The filtered aliases or all if filter not opted in.
+  */
+  protected function filterByAlias($needle_alias, Array $aliases){
+    if (!$needle_alias){
+      return $aliases;
+    }
+    $results = [];
+    foreach($aliases as $key=>$alias){
+      if ($needle_alias){
+        if($needle_alias != $alias['alias']){
+          continue;
+        }
+        $results[] = $alias;
+      }
+    }
+    return $results;
+  }
 
 }
